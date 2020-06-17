@@ -16,6 +16,7 @@ A few Python modules are required:
 - [aiohttp](https://github.com/aio-libs/aiohttp/)
 - [beautifulsoup4](https://code.launchpad.net/beautifulsoup)
 - [wikipedia](https://github.com/goldsmith/Wikipedia)
+- [mysql-connector](https://pypi.org/project/mysql-connector-python/)
 - [aiohttp_socks](https://github.com/romis2012/aiohttp-socks) (Tor support)
 - [pytz](https://pythonhosted.org/pytz/) (Wundertime support)
 
@@ -33,7 +34,7 @@ pipenv install
 With `pip`
 
 ```bash
-pip3.8 install -U --user aiohttp aiohttp_socks beautifulsoup4 pytz tomlkit websockets wikipedia wolframalpha
+pip3.8 install -U --user aiohttp aiohttp_socks beautifulsoup4 pytz tomlkit websockets wikipedia wolframalpha mysql-connector
 ```
 
 ## Running
