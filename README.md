@@ -1,7 +1,5 @@
 # QuantumJump
 
-[![HitCount](http://hits.dwyl.com/JohnRipper/QuantumJump.svg)](http://hits.dwyl.com/JohnRipper/QuantumJump)
-
 A work in progress bot for [JumpInChat](https://jumpin.chat)
 
 ## Prerequisites

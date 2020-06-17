@@ -21,8 +21,7 @@
 import asyncio
 import json
 import time
-from difflib import get_close_matches
-
+import re
 import websockets
 
 from lib.cog import CogManager
@@ -31,6 +30,7 @@ from lib.http import Http
 from lib.logging import QuantumLogger
 from lib.objects import Message, User, UserList, BotState
 
+import mysql.connector
 
 class QuantumJumpBot:
     def __init__(self, settings):
@@ -38,16 +38,15 @@ class QuantumJumpBot:
         self.state = BotState(BotState.INITIALIZED)
         self.start_time = time.time()
         self.api = Http()
-
         self.cm = CogManager()
         self.settings = settings
         self.botconfig = self.settings.Bot
         self.ul = UserList()
         self.room = self.botconfig.roomname
         if self.settings.Bot.debug:
-            self.log = QuantumLogger('QuantumJump', self.room, 10)
+            self.log = QuantumLogger('QuantumJump', 10)
         else:
-            self.log = QuantumLogger('QuantumJump', self.room, 19)
+            self.log = QuantumLogger('QuantumJump', 19)
 
     async def wsend(self, data):
         if type(data) is list:
@@ -56,9 +55,8 @@ class QuantumJumpBot:
             type_exemptions = ["2probe", "5", "2"]
             if not data.startswith("42") and data not in type_exemptions:
                 data = f"42{data}"
-        self.log.ws_send(data)
-
         await self._ws.send(data)
+        self.log.ws_send(data)
 
     async def run(self):
         enabled_modules = self.settings.Modules["enabled"]
@@ -69,10 +67,11 @@ class QuantumJumpBot:
         self.state = BotState.DISCONNECT
         await self._ws.close()
 
-
     async def connect(self):
         logged_in = await self.api.login(self.botconfig.username,
-                                          self.botconfig.password)
+                                         self.botconfig.password)
+        self.log.info(f"Logged in: {logged_in}")
+
         async with websockets.connect(
                 uri=await self.api.get_wss(),
                 timeout=600,
@@ -85,12 +84,10 @@ class QuantumJumpBot:
                 await self._recv(message=message)
 
     async def _recv(self, message: str):
-        if not message:
-            return
-        self.log.ws_event(message)
 
         if message.isdigit():
             return
+        self.log.ws_event(message)
 
         if message == "3probe":
             await self.wsend("5")
@@ -100,16 +97,56 @@ class QuantumJumpBot:
             ]
             await self.wsend(roommsg)
             asyncio.create_task(self.pacemaker())
-            # await self.api.enroll()
             return
 
         data = json.loads(message[2:])
+
+        if data[0] == "room::status":
+            msg = data[1].get("message") 
+            if "added a video to the playlist" in msg:      
+                    
+                ytid = re.search("(?:v=|\.be\/)(.{11})", msg)[1]
+                myid = msg.split(' ')[0]
+                title = msg.split('added a video to the playlist: ')[1]
+                title = title.split('(https://')[0]
+
+                #data = await self.endpoint(f"https://www.googleapis.com/youtube/v3/videos/?part=snippet%2CcontentDetails%2Cstatistics&id={ytid}",ytid)
+
+                mydb = mysql.connector.connect(
+                    host="gk90usy5ik2otcvi.cbetxkdyhwsb.us-east-1.rds.amazonaws.com",
+                    user="v0a6u0kt48m58uge",
+                    passwd="n9rgtn2meyhthi9t",
+                    database="ppyh9hbf089e36w6"
+                )
+                cursor = mydb.cursor()
+
+                ids = ((ytid))
+                myv = f"SELECT COUNT(*) as count FROM videos WHERE ytid LIKE '{ytid}'"
+                add = f"""INSERT INTO videos (ytid, title) VALUES ('{ytid}', '{title}')"""
+                our = "SELECT COUNT(*) as count FROM videos"
+
+                cursor.execute(myv)
+                myvideos = cursor.fetchone()[0]
+                
+                if myvideos == 0:
+                    try:
+                        cursor.execute(add, ids)
+                        mydb.commit()                    
+                        print(f"Added {title} to video.coder.ml/watch/{ytid}.")
+                    except:
+                        mydb.rollback()
+
+                cursor.execute(our)
+                allvids = cursor.fetchone()[0]                
+                print(f"{allvids} videos in cache.")
+
+                mydb.close()
 
         if data[0] == "room::updateUserList":
             for user in data[1].get("users", []):
                 if user:
                     self.ul.add(User(**user))
-            if user := data[1].get("user", None):
+            if user:=  data[1].get("user", None):
                 if user:
                     self.ul.add(User(**user))
         if data[0] == "room::updateUser":
@@ -119,7 +156,7 @@ class QuantumJumpBot:
             for user in data[1].get("users", []):
                 self.ul.update(User(**user))
 
-        # todo  update userlist when a name changes.
+        #todo  update userlist when a name changes.
         if data[0] == "room::handleChange":
             # ["room::handleChange",{"userId":"5e22c017be8a4900076d3e21","handle":"Tech"}]
             pass
@@ -170,7 +207,7 @@ class QuantumJumpBot:
                         await self.wsend(
                             Message.makeMsg(message=f"failed to {c.name} {c.message}",
                                             room=self.room))
-                elif c.name == "unload":
+                if c.name == "unload":
                     if self.cm.unload(c.message):
                         await self.wsend(
                             Message.makeMsg(message=f"unloaded {c.message}",
@@ -179,22 +216,11 @@ class QuantumJumpBot:
                         await self.wsend(
                             Message.makeMsg(message=f"Could not unload {c.message}",
                                             room=self.room))
-                elif c.name == "loaded":
+                if c.name == "loaded":
                     await self.wsend(
                         Message.makeMsg(message=f"modules: {self.cm.modules}, cogs:{self.cm.cogs}",
                                         room=self.room))
-
-                elif not await self.cm.do_command(c):
-                    # command not found, lets attempt to correct their mistake.
-                    if self.settings.Bot.spellcheck_commands:
-                        commands = self.cm.all_commands
-                        matches = get_close_matches(c.name, commands.keys(), 1, .4)
-                        if len(matches) > 0:
-                            await self.wsend(
-                                Message.makeMsg(
-                                    message=f"did you mean {c.prefix}{matches[0]} - {commands.get(matches[0])}?",
-                                    room=self.room))
-
+                await self.cm.do_command(c)
         await self.cm.do_event(data=data)
 
     async def pacemaker(self):

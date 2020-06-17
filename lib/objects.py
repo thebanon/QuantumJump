@@ -42,7 +42,7 @@ class JumpinObject:
         for attr in self.__dict__:
             cheddar = getattr(self, attr)
             if type(cheddar) is dict:
-                setattr(self, attr, _routes.get(attr)(**cheddar))  # Unexpected argument(s)
+                setattr(self, attr, _routes.get(attr)(**cheddar))
 
 
 @dataclass
@@ -106,14 +106,16 @@ class User(JumpinObject):
     def is_mod(self):
         if self.operator_id is not None and self.assignedBy is None:
             return True
-        return False
+        else:
+            return False
 
     @property
     def is_op(self):
         # TODO ROOM OPS
         if self.operator_id is not None and self.assignedBy is not None:
             return True
-        return False
+        else:
+            return False
 
     @property
     def role(self) -> Role:
@@ -202,9 +204,8 @@ class JumpinError:
     id: str = None
     error: str = None
 
-
 @dataclass
-class PlaylistUpdate(JumpinObject):
+class PlaylistUpdate:
     startTime: str = None
     endTime: str = None
     description: str = None
@@ -222,12 +223,7 @@ class PlaylistUpdate(JumpinObject):
 
 
 @dataclass
-class Playlist:
-    items: List[PlaylistUpdate]
-
-
-@dataclass
-class PlayVideo:
+class PlayVideo(JumpinObject):
     startTime: str = None
     endTime: str = None
     description: str = None
@@ -237,12 +233,11 @@ class PlayVideo:
     mediaId: str = None
     title: str = None
     link: str = None
-    duration: int = 0
+    duration: str = None
     thumb: str = None
     mediaType: str = None
     startedBy: dict = None
     createdAt: str = None
-    startAt: int = 0
 
 
 @dataclass
@@ -260,6 +255,7 @@ class Banlist:
 @dataclass
 class HandleChange:
     handle: str
+
 
 
 @dataclass
@@ -294,29 +290,30 @@ class Settings(JumpinObject):
     requiresPassword: bool
     topic: Topic = None
 
-# @dataclass
-# class PlaylistUpdateItem(JumpinObject):
-#     startTime:str = None
-#     endTime: str = None
-#     description: str = None
-#     channelId:str = None
-#     pausedAt:str = None
-#     _id:str = None
-#     mediaId:str = None
-#     title:str = None
-#     duration:str = None
-#     thumb:str = None
-#     mediaType: str = None
-#     startedBy: str = None
-#     createdAt: str = None
+@dataclass
+class PlaylistUpdateItem(JumpinObject):
+    startTime:str = None
+    endTime: str = None
+    description: str = None
+    channelId:str = None
+    pausedAt:str = None
+    _id:str = None
+    mediaId:str = None
+    title:str = None
+    duration:str = None
+    thumb:str = None
+    mediaType: str = None
+    startedBy: str = None
+    createdAt: str = None
 
 
-# @dataclass
-# class PlaylistUpdate(List[PlaylistUpdateItem]):
-#     objects: List[PlaylistUpdateItem] = field(default_factory=PlaylistUpdateItem)
-#     def __init___(self, data: list):
-#         for object in data:
-#             self.objects.append(PlaylistUpdateItem(**object))
+
+@dataclass
+class PlaylistUpdate(List[PlaylistUpdateItem]):
+    objects: List[PlaylistUpdateItem] = field(default_factory=PlaylistUpdateItem)
+    def __init___(self, data: list):
+        for object in data:
+            self.objects.append(PlaylistUpdateItem(**object))
 
 @dataclass
 class UserList(JumpinObject):
@@ -328,7 +325,7 @@ class UserList(JumpinObject):
     users: List[User] = field(default_factory=User)
 
     def add(self, user: User):
-        # update the list and return, else add to the list
+        #update the list and return, else add to the list
         if not isinstance(self.users, list):
             self.users = []
         for pos, item in enumerate(self.users):
@@ -373,7 +370,6 @@ class UserList(JumpinObject):
             for user in self.users:
                 if user._id == id:
                     return user
-
 
 class BotState(Enum):
     INITIALIZED = 0

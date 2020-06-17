@@ -66,7 +66,7 @@ class Styles:
 
 
 def encodetxt(text: str, style=None) -> str:
-    emoji = re.findall(":\\w*:", text)  # PEP 8: W605 invalid escape sequence '\w'
+    emoji = re.findall(":\w*:", text)
     for each in emoji:
         text = re.sub(each, "{}", text)
     characters = list(text)

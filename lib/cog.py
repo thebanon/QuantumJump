@@ -27,8 +27,7 @@ from types import ModuleType
 
 from lib.command import Command
 from lib.logging import QuantumLogger
-from lib.objects import (Banlist, HandleChange, JumpinError, Message, Playlist,
-                         PlaylistUpdate, PlayVideo, Status, User, UserList)
+from lib.objects import HandleChange, Message, Status, User, JumpinError, Banlist, UserList, PlaylistUpdate
 from lib.styling import Colors, encodetxt
 
 
@@ -84,9 +83,10 @@ class Cog:
             # re.DOTALL makes . match everything, including newline
             messages = re.findall("(.{1,254}[.,;:]|.{1,254})", message, re.DOTALL)
             chunk_limit = self.bot_settings.chunk_limit
-            if chunk_limit is None:
+            if chunk_limit == 0 or chunk_limit == None:
                 chunk_limit = len(messages)
-            for message in messages[:chunk_limit]:
+            for i in range(0, chunk_limit):
+                message = messages[i][:254]
                 if style is not None:
                     message = encodetxt(message, style)
                 await self.send_message(message, room=room, color=color, style=style)
@@ -159,15 +159,6 @@ class Cog:
             "youtube::remove",
             {
                 "id": id
-            }
-        ]
-        await self.ws_send(data=data)
-
-    async def settime(self, t: int):
-        data = [
-            "youtube::seek",
-            {
-                "seekTo": t
             }
         ]
         await self.ws_send(data=data)
@@ -305,6 +296,7 @@ class Cog:
     async def alert(self, message):
         pass
 
+
     @event(event="youtube::playlistUpdate")
     # 42["youtube::playlistUpdate",[{"startTime":null,"endTime":null,"description":null,"channelId":"UCqukXrA3L_B0EVHiM14EU7g","pausedAt":null,"_id":"5dea8a123533d70008b01aa9","mediaId":"jesc3yvZSws","title":"DANZIG - Mother Lyrics","link":"https://youtu.be/jesc3yvZSws","duration":226,"thumb":"https://i.ytimg.com/vi/jesc3yvZSws/default.jpg","mediaType":"TYPE_YOUTUBE","startedBy":"5c4b7b6746bb1a000712c13c","createdAt":"2019-12-06T17:04:18.334Z"}]]
     async def playlistUpdate(self, playlistUpdate: list):
@@ -369,6 +361,7 @@ class CogManager:
         if module in self.cogs.keys:
             return self.modules.get(module.lower())
 
+
     async def do_event(self, data: list):
         for cog in self.cogs.values():
             for meth in cog.events:
@@ -377,8 +370,7 @@ class CogManager:
                         "room::updateUserList": UserList,
                         "room::message": Message,
                         "client::error": JumpinError,
-                        "youtube::playlistUpdate": Playlist,
-                        "youtube::playvideo": PlayVideo,
+                        "youtube::playlistUpdate": PlaylistUpdate,
                         "room::operation::ban": Banlist
                     }
                     if choice := routes.get(data[0], False):
@@ -393,7 +385,6 @@ class CogManager:
             for meth in cog.commands:
                 if command.name in meth.__command_name__:
                     if meth.__restricted__:
-                        # Unresolved attribute reference 'sender' for class 'Command'
                         if command.sender.role >= meth.__role__:
                             asyncio.create_task(meth(command))
                     else:
